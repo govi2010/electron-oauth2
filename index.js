@@ -1,16 +1,17 @@
-'use strict';
+"use strict";
 
-const Promise = require('pinkie-promise');
-const queryString = require('querystring');
-const fetch = require('node-fetch');
-const objectAssign = require('object-assign');
-const nodeUrl = require('url');
-const electron = require('electron');
-const BrowserWindow = electron.BrowserWindow || electron.remote.BrowserWindow;
+const Promise = require("pinkie-promise");
+const queryString = require("querystring");
+const fetch = require("node-fetch");
+const objectAssign = require("object-assign");
+const nodeUrl = require("url");
+const electron = require("electron");
+const session = electron.session;
+const BrowserWindow = electron.BrowserWindow;
 
-var generateRandomString = function (length) {
-  var text = '';
-  var possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+var generateRandomString = function(length) {
+  var text = "";
+  var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
   for (var i = 0; i < length; i++) {
     text += possible.charAt(Math.floor(Math.random() * possible.length));
@@ -19,16 +20,16 @@ var generateRandomString = function (length) {
   return text;
 };
 
-module.exports = function (config, windowParams) {
+module.exports = function(config, windowParams) {
   function getAuthorizationCode(opts) {
     opts = opts || {};
 
     if (!config.redirectUri) {
-      config.redirectUri = 'urn:ietf:wg:oauth:2.0:oob';
+      config.redirectUri = "urn:ietf:wg:oauth:2.0:oob";
     }
 
     var urlParams = {
-      response_type: 'code',
+      response_type: "code",
       redirect_uri: config.redirectUri,
       client_id: config.clientId,
       state: generateRandomString(16)
@@ -42,16 +43,16 @@ module.exports = function (config, windowParams) {
       urlParams.access_type = opts.accessType;
     }
 
-    var url = config.authorizationUrl + '?' + queryString.stringify(urlParams);
+    var url = config.authorizationUrl + "?" + queryString.stringify(urlParams);
 
-    return new Promise(function (resolve, reject) {
-      const authWindow = new BrowserWindow(windowParams || { 'use-content-size': true });
+    return new Promise(function(resolve, reject) {
+      const authWindow = new BrowserWindow(windowParams || { "use-content-size": true });
 
       authWindow.loadURL(url);
       authWindow.show();
 
-      authWindow.on('closed', function () {
-        reject(new Error('window was closed by user'));
+      authWindow.on("closed", function() {
+        reject(new Error("window was closed by user"));
       });
 
       function onCallback(url) {
@@ -62,40 +63,49 @@ module.exports = function (config, windowParams) {
 
         if (error !== undefined) {
           reject(error);
-          authWindow.removeAllListeners('closed');
-          setImmediate(function () {
-            setTimeout(function () {
+          authWindow.removeAllListeners("closed");
+          setImmediate(function() {
+            setTimeout(function() {
               authWindow.webContents.session.clearStorageData({
-                storages: ['appcache', 'cookies', 'filesystem', 'shadercache'],
-                quotas: ['persistent', 'syncable']
-              }, function () {
+                storages: ["appcache", "cookies", "filesystem", "shadercache"],
+                quotas: ["persistent", "syncable"]
+              }, function() {
                 authWindow.close();
-                authWindow.destroy()
+                authWindow.destroy();
               });
-            }, 100)
+            }, 100);
           });
         } else if (code) {
           resolve(code);
-          authWindow.removeAllListeners('closed');
-          setImmediate(function () {
-            setTimeout(function () {
+          authWindow.removeAllListeners("closed");
+          setImmediate(function() {
+            setTimeout(function() {
               authWindow.webContents.session.clearStorageData({
-                storages: ['appcache', 'cookies', 'filesystem', 'shadercache'],
-                quotas: ['persistent', 'syncable']
-              }, function () {
+                storages: ["appcache", "cookies", "filesystem", "shadercache"],
+                quotas: ["persistent", "syncable"]
+              }, function() {
                 authWindow.close();
-                authWindow.destroy()
+                authWindow.destroy();
               });
-            }, 100)
+            }, 100);
           });
         }
       }
 
-      authWindow.webContents.on('will-navigate', function (event, url) {
+      authWindow.webContents.on("will-navigate", function(event, url) {
         onCallback(url);
       });
-
-      authWindow.webContents.on('did-get-redirect-request', function (event, oldUrl, newUrl) {
+      var filter = {
+        urls: [config.redirectUri + "*"]
+      };
+      authWindow.webContents.session.webRequest.onBeforeRequest(filter, (details, callback) => {
+        var url = details.url;
+        if (url.startsWith(config.redirectUri)) {
+          onCallback(url);
+        }
+        callback({});
+      });
+      authWindow.webContents.on("did-get-redirect-request", function(event, oldUrl, newUrl) {
         onCallback(newUrl);
       });
     });
@@ -103,12 +113,12 @@ module.exports = function (config, windowParams) {
 
   function tokenRequest(data) {
     const header = {
-      'Accept': 'application/json',
-      'Content-Type': 'application/x-www-form-urlencoded'
+      "Accept": "application/json",
+      "Content-Type": "application/x-www-form-urlencoded"
     };
 
     if (config.useBasicAuthorizationHeader) {
-      header.Authorization = 'Basic ' + new Buffer(config.clientId + ':' + config.clientSecret).toString('base64');
+      header.Authorization = "Basic " + new Buffer(config.clientId + ":" + config.clientSecret).toString("base64");
     } else {
       objectAssign(data, {
         client_id: config.clientId,
@@ -117,20 +127,20 @@ module.exports = function (config, windowParams) {
     }
 
     return fetch(config.tokenUrl, {
-      method: 'POST',
+      method: "POST",
       headers: header,
       body: queryString.stringify(data)
-    }).then(function (res) {
+    }).then(function(res) {
       return res.json();
     });
   }
 
   function getAccessToken(opts) {
     return getAuthorizationCode(opts)
-      .then(function (authorizationCode) {
+      .then(function(authorizationCode) {
         var tokenRequestData = {
           code: authorizationCode,
-          grant_type: 'authorization_code',
+          grant_type: "authorization_code",
           redirect_uri: config.redirectUri
         };
         tokenRequestData = Object.assign(tokenRequestData, opts.additionalTokenRequestData);
@@ -141,7 +151,7 @@ module.exports = function (config, windowParams) {
   function refreshToken(refreshToken) {
     return tokenRequest({
       refresh_token: refreshToken,
-      grant_type: 'refresh_token',
+      grant_type: "refresh_token",
       redirect_uri: config.redirectUri
     });
   }
