@@ -153,19 +153,21 @@ module.exports = function(config, windowParams) {
         });
     }
 
-    function getAccessToken(opts, callback) {
-        getAuthorizationCode(opts, function(authorizationCode) {
-            var tokenRequestData = {
-                code: authorizationCode,
-                grant_type: "authorization_code",
-                redirect_uri: config.redirectUri
-            };
-            tokenRequestData = Object.assign(
-                tokenRequestData,
-                opts.additionalTokenRequestData
-            );
-            tokenRequest(tokenRequestData, function(resp) {
-                callback(resp);
+    function getAccessToken(opts) {
+        return new Promise(function(resolve, reject) {
+            getAuthorizationCode(opts, function(authorizationCode) {
+                var tokenRequestData = {
+                    code: authorizationCode,
+                    grant_type: "authorization_code",
+                    redirect_uri: config.redirectUri
+                };
+                tokenRequestData = Object.assign(
+                    tokenRequestData,
+                    opts.additionalTokenRequestData
+                );
+                tokenRequest(tokenRequestData, function(resp) {
+                    resolve(resp);
+                });
             });
         });
     }
