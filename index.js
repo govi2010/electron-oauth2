@@ -66,46 +66,49 @@ module.exports = function(config, windowParams) {
             if (error !== undefined) {
                 callback(error);
                 authWindow.removeAllListeners("closed");
-                setImmediate(function() {
-                    setTimeout(function() {
-                        authWindow.webContents.session.clearStorageData({
-                                storages: ["appcache", "cookies", "filesystem", "shadercache"],
-                                quotas: ["persistent", "syncable"]
-                            },
-                            function() {
-                                authWindow.close();
-                                authWindow.destroy();
-                            }
-                        );
-                    }, 100);
-                });
+                authWindow.close();
+                authWindow.destroy();
+//                 setImmediate(function() {
+//                     setTimeout(function() {
+//                         authWindow.webContents.session.clearStorageData({
+//                                 storages: ["appcache", "cookies", "filesystem", "shadercache"],
+//                                 quotas: ["persistent", "syncable"]
+//                             },
+//                             function() {
+//                                 authWindow.close();
+//                                 authWindow.destroy();
+//                             }
+//                         );
+//                     }, 100);
+//                 });
             } else if (code) {
                 callback(code);
                 authWindow.removeAllListeners("closed");
-                setImmediate(function() {
-                    setTimeout(function() {
-                        authWindow.webContents.session.clearStorageData({
-                                storages: ["appcache", "cookies", "filesystem", "shadercache"],
-                                quotas: ["persistent", "syncable"]
-                            },
-                            function() {
-                                authWindow.close();
-                                authWindow.destroy();
-                            }
-                        );
-                    }, 100);
-                });
+                authWindow.close();
+                authWindow.destroy();
+//                 setImmediate(function() {
+//                     setTimeout(function() {
+//                         authWindow.webContents.session.clearStorageData({
+//                                 storages: ["appcache", "cookies", "filesystem", "shadercache"],
+//                                 quotas: ["persistent", "syncable"]
+//                             },
+//                             function() {
+//                                 authWindow.close();
+//                                 authWindow.destroy();
+//                             }
+//                         );
+//                     }, 100);
+//                 });
             }
         }
 
         authWindow.webContents.on("will-navigate", function(event, url) {
             onCallback(url);
         });
-        var filter = {
-            urls: [config.redirectUri + "*"]
-        };
+//         var filter = {
+//             urls: [config.redirectUri + "*"]
+//         };
         authWindow.webContents.session.webRequest.onBeforeRequest(
-            filter,
             (details, c) => {
                 var url = details.url;
                 if (url.startsWith(config.redirectUri)) {
